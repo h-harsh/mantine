@@ -1,8 +1,10 @@
-import React, { Fragment, useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import {
   Area,
+  AreaProps,
   CartesianGrid,
   DotProps,
+  Label,
   Legend,
   AreaChart as ReChartsAreaChart,
   ReferenceLine,
@@ -106,6 +108,14 @@ export interface AreaChartProps
 
   /** Determines whether points with `null` values should be connected, `true` by default */
   connectNulls?: boolean;
+
+  /** Additional components that are rendered inside recharts `AreaChart` component */
+  children?: React.ReactNode;
+
+  /** Props passed down to recharts `Area` component */
+  areaProps?:
+    | ((series: AreaChartSeries) => Partial<Omit<AreaProps, 'ref'>>)
+    | Partial<Omit<AreaProps, 'ref'>>;
 }
 
 export type AreaChartFactory = Factory<{
@@ -183,6 +193,10 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
     referenceLines,
     dir,
     valueFormatter,
+    children,
+    areaProps,
+    xAxisLabel,
+    yAxisLabel,
     ...others
   } = props;
 
@@ -238,6 +252,7 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
         isAnimationActive={false}
         connectNulls={connectNulls}
         stackId={stacked ? 'stack-dots' : undefined}
+        {...(typeof areaProps === 'function' ? areaProps(item) : areaProps)}
       />
     );
   });
@@ -273,6 +288,7 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
           fillOpacity={dimmed ? 0 : 1}
           strokeOpacity={dimmed ? 0.5 : 1}
           strokeDasharray={item.strokeDasharray}
+          {...(typeof areaProps === 'function' ? areaProps(item) : areaProps)}
         />
       </Fragment>
     );
@@ -310,6 +326,11 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
           data={data}
           stackOffset={type === 'percent' ? 'expand' : undefined}
           layout={orientation}
+          margin={{
+            bottom: xAxisLabel ? 30 : undefined,
+            left: yAxisLabel ? 10 : undefined,
+            right: yAxisLabel ? 5 : undefined,
+          }}
           {...areaChartProps}
         >
           {referenceLinesItems}
@@ -326,7 +347,6 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
                   series={series}
                 />
               )}
-              height={44}
               {...legendProps}
             />
           )}
@@ -349,7 +369,14 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
             minTickGap={5}
             {...getStyles('axis')}
             {...xAxisProps}
-          />
+          >
+            {xAxisLabel && (
+              <Label position="insideBottom" offset={-20} fontSize={12} {...getStyles('axisLabel')}>
+                {xAxisLabel}
+              </Label>
+            )}
+            {xAxisProps?.children}
+          </XAxis>
 
           <YAxis
             hide={!withYAxis}
@@ -362,7 +389,21 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
             tickFormatter={type === 'percent' ? valueToPercent : valueFormatter}
             {...getStyles('axis')}
             {...yAxisProps}
-          />
+          >
+            {yAxisLabel && (
+              <Label
+                position="insideLeft"
+                angle={-90}
+                textAnchor="middle"
+                fontSize={12}
+                offset={-5}
+                {...getStyles('axisLabel')}
+              >
+                {yAxisLabel}
+              </Label>
+            )}
+            {yAxisProps?.children}
+          </YAxis>
 
           {withTooltip && (
             <Tooltip
@@ -402,6 +443,7 @@ export const AreaChart = factory<AreaChartFactory>((_props, ref) => {
 
           {areas}
           {withDots && dotsAreas}
+          {children}
         </ReChartsAreaChart>
       </ResponsiveContainer>
     </Box>

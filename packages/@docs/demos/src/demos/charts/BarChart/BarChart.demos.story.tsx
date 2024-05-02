@@ -107,3 +107,18 @@ export const Demo_valueFormatter = {
   name: '⭐ Demo: valueFormatter',
   render: renderDemo(demos.valueFormatter),
 };
+
+export const Demo_barProps = {
+  name: '⭐ Demo: barProps',
+  render: renderDemo(demos.barProps),
+};
+
+export const Demo_axisLabels = {
+  name: '⭐ Demo: axisLabels',
+  render: renderDemo(demos.axisLabels),
+};
+
+export const Demo_barValueLabel = {
+  name: '⭐ Demo: barValueLabel',
+  render: renderDemo(demos.barValueLabel),
+};

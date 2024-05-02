@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Bar,
+  BarProps,
   CartesianGrid,
+  Label,
   Legend,
   BarChart as ReChartsBarChart,
   ReferenceLine,
@@ -70,6 +72,17 @@ export interface BarChartProps
 
   /** Props passed down to recharts `BarChart` component */
   barChartProps?: React.ComponentPropsWithoutRef<typeof ReChartsBarChart>;
+
+  /** Additional components that are rendered inside recharts `BarChart` component */
+  children?: React.ReactNode;
+
+  /** Props passed down to recharts `Bar` component */
+  barProps?:
+    | ((series: BarChartSeries) => Partial<Omit<BarProps, 'ref'>>)
+    | Partial<Omit<BarProps, 'ref'>>;
+
+  /** Determines whether a label with bar value should be displayed on top of each bar, incompatible with `type="stacked"` and `type="percent"`, `false` by default */
+  withBarValueLabel?: boolean;
 }
 
 export type BarChartFactory = Factory<{
@@ -100,6 +113,20 @@ const varsResolver = createVarsResolver<BarChartFactory>(
     },
   })
 );
+
+function BarLabel({ value, valueFormatter, ...others }: Record<string, any>) {
+  return (
+    <text
+      {...others}
+      dy={-10}
+      fontSize={12}
+      fill="var(--chart-text-color, var(--mantine-color-dimmed))"
+      textAnchor="center"
+    >
+      {typeof valueFormatter === 'function' ? valueFormatter(value) : value}
+    </text>
+  );
+}
 
 export const BarChart = factory<BarChartFactory>((_props, ref) => {
   const props = useProps('BarChart', defaultProps, _props);
@@ -135,6 +162,11 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
     orientation,
     dir,
     valueFormatter,
+    children,
+    barProps,
+    xAxisLabel,
+    yAxisLabel,
+    withBarValueLabel,
     ...others
   } = props;
 
@@ -183,6 +215,8 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
         fillOpacity={dimmed ? 0.1 : fillOpacity}
         strokeOpacity={dimmed ? 0.2 : 0}
         stackId={stacked ? 'stack' : undefined}
+        label={withBarValueLabel ? <BarLabel valueFormatter={valueFormatter} /> : undefined}
+        {...(typeof barProps === 'function' ? barProps(item) : barProps)}
       />
     );
   });
@@ -219,6 +253,11 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
           data={data}
           stackOffset={type === 'percent' ? 'expand' : undefined}
           layout={orientation}
+          margin={{
+            bottom: xAxisLabel ? 30 : undefined,
+            left: yAxisLabel ? 10 : undefined,
+            right: yAxisLabel ? 5 : undefined,
+          }}
           {...barChartProps}
         >
           {withLegend && (
@@ -234,7 +273,6 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
                   series={series}
                 />
               )}
-              height={44}
               {...legendProps}
             />
           )}
@@ -249,7 +287,14 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
             minTickGap={5}
             {...getStyles('axis')}
             {...xAxisProps}
-          />
+          >
+            {xAxisLabel && (
+              <Label position="insideBottom" offset={-20} fontSize={12} {...getStyles('axisLabel')}>
+                {xAxisLabel}
+              </Label>
+            )}
+            {xAxisProps?.children}
+          </XAxis>
 
           <YAxis
             hide={!withYAxis}
@@ -262,7 +307,21 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
             tickFormatter={type === 'percent' ? valueToPercent : valueFormatter}
             {...getStyles('axis')}
             {...yAxisProps}
-          />
+          >
+            {yAxisLabel && (
+              <Label
+                position="insideLeft"
+                angle={-90}
+                textAnchor="middle"
+                fontSize={12}
+                offset={-5}
+                {...getStyles('axisLabel')}
+              >
+                {yAxisLabel}
+              </Label>
+            )}
+            {yAxisProps?.children}
+          </YAxis>
 
           <CartesianGrid
             strokeDasharray={strokeDasharray}
@@ -300,6 +359,7 @@ export const BarChart = factory<BarChartFactory>((_props, ref) => {
 
           {bars}
           {referenceLinesItems}
+          {children}
         </ReChartsBarChart>
       </ResponsiveContainer>
     </Box>

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import cx from 'clsx';
 import { NumberFormatValues, NumericFormat, OnValueChange } from 'react-number-format';
 import { assignRef, clamp, useMergedRef, useUncontrolled } from '@mantine/hooks';
@@ -36,31 +36,6 @@ function isValidNumber(value: number | string | undefined): value is number {
     (typeof value === 'number' ? value < Number.MAX_SAFE_INTEGER : !Number.isNaN(Number(value))) &&
     !Number.isNaN(value)
   );
-}
-
-interface GetDecrementedValueInput {
-  value: number;
-  min: number | undefined;
-  step: number | undefined;
-  allowNegative: boolean | undefined;
-}
-
-function getDecrementedValue({ value, min, step = 1, allowNegative }: GetDecrementedValueInput) {
-  const nextValue = value - step;
-
-  if (min !== undefined && nextValue < min) {
-    return min;
-  }
-
-  if (!allowNegative && nextValue < 0 && min === undefined) {
-    return value;
-  }
-
-  if (min !== undefined && min >= 0 && nextValue <= min) {
-    return nextValue;
-  }
-
-  return nextValue;
 }
 
 function isInRange(value: number | undefined, min: number | undefined, max: number | undefined) {
@@ -164,6 +139,9 @@ export interface NumberInputProps
 
   /** Initial delay in milliseconds before stepping the value. */
   stepHoldDelay?: number;
+
+  /** Determines whether up/down keyboard events should be handled to increment/decrement value, `true` by default */
+  withKeyboardEvents?: boolean;
 }
 
 export type NumberInputFactory = Factory<{
@@ -179,6 +157,7 @@ const defaultProps: Partial<NumberInputProps> = {
   clampBehavior: 'blur',
   allowDecimal: true,
   allowNegative: true,
+  withKeyboardEvents: true,
   startValue: 0,
 };
 
@@ -211,6 +190,7 @@ export const NumberInput = factory<NumberInputFactory>((_props, ref) => {
     allowDecimal,
     decimalScale,
     onKeyDown,
+    onKeyDownCapture,
     handlersRef,
     startValue,
     disabled,
@@ -222,6 +202,7 @@ export const NumberInput = factory<NumberInputFactory>((_props, ref) => {
     stepHoldInterval,
     stepHoldDelay,
     allowLeadingZeros,
+    withKeyboardEvents,
     ...others
   } = props;
 
@@ -266,30 +247,74 @@ export const NumberInput = factory<NumberInputFactory>((_props, ref) => {
     onValueChange?.(payload, event);
   };
 
+  const getDecimalPlaces = (inputValue: number | string): number => {
+    const match = String(inputValue).match(/(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
+    if (!match) {
+      return 0;
+    }
+    return Math.max(0, (match[1] ? match[1].length : 0) - (match[2] ? +match[2] : 0));
+  };
+
+  const adjustCursor = (position?: number) => {
+    if (inputRef.current && typeof position !== 'undefined') {
+      inputRef.current.setSelectionRange(position, position);
+    }
+  };
+
   const incrementRef = useRef<() => void>();
   incrementRef.current = () => {
+    let val: number;
+    const currentValuePrecision = getDecimalPlaces(_value);
+    const stepPrecision = getDecimalPlaces(step!);
+    const maxPrecision = Math.max(currentValuePrecision, stepPrecision);
+    const factor = 10 ** maxPrecision;
+
     if (typeof _value !== 'number' || Number.isNaN(_value)) {
-      setValue(clamp(startValue!, min, max));
+      val = clamp(startValue!, min, max);
     } else if (max !== undefined) {
-      setValue(_value + step! <= max ? _value + step! : max);
+      const incrementedValue = (Math.round(_value * factor) + Math.round(step! * factor)) / factor;
+      val = incrementedValue <= max ? incrementedValue : max;
     } else {
-      setValue(_value + step!);
+      val = (Math.round(_value * factor) + Math.round(step! * factor)) / factor;
     }
+
+    const formattedValue = val.toFixed(maxPrecision);
+    setValue(parseFloat(formattedValue));
+    onValueChange?.(
+      { floatValue: parseFloat(formattedValue), formattedValue, value: formattedValue },
+      { source: 'increment' as any }
+    );
+    setTimeout(() => adjustCursor(inputRef.current?.value.length), 0);
   };
 
   const decrementRef = useRef<() => void>();
   decrementRef.current = () => {
+    let val: number;
+    const currentValuePrecision = getDecimalPlaces(_value);
+    const stepPrecision = getDecimalPlaces(step!);
+    const maxPrecision = Math.max(currentValuePrecision, stepPrecision);
+    const factor = 10 ** maxPrecision;
+
     if (typeof _value !== 'number' || Number.isNaN(_value)) {
-      setValue(clamp(startValue!, min, max));
+      val = clamp(startValue!, min, max);
     } else {
-      setValue(getDecrementedValue({ value: _value, min, step, allowNegative }));
+      const decrementedValue = (Math.round(_value * factor) - Math.round(step! * factor)) / factor;
+      val = min !== undefined && decrementedValue < min ? min : decrementedValue;
     }
+
+    const formattedValue = val.toFixed(maxPrecision);
+    setValue(parseFloat(formattedValue));
+    onValueChange?.(
+      { floatValue: parseFloat(formattedValue), formattedValue, value: formattedValue },
+      { source: 'decrement' as any }
+    );
+    setTimeout(() => adjustCursor(inputRef.current?.value.length), 0);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     onKeyDown?.(event);
 
-    if (readOnly) {
+    if (readOnly || !withKeyboardEvents) {
       return;
     }
 
@@ -301,6 +326,17 @@ export const NumberInput = factory<NumberInputFactory>((_props, ref) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       decrementRef.current!();
+    }
+  };
+
+  const handleKeyDownCapture = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    onKeyDownCapture?.(event);
+    if (event.key === 'Backspace') {
+      const input = inputRef.current!;
+      if (input.selectionStart === 0 && input.selectionStart === input.selectionEnd) {
+        event.preventDefault();
+        window.setTimeout(() => adjustCursor(0), 0);
+      }
     }
   };
 
@@ -401,6 +437,7 @@ export const NumberInput = factory<NumberInputFactory>((_props, ref) => {
       __staticSelector="NumberInput"
       decimalScale={allowDecimal ? decimalScale : 0}
       onKeyDown={handleKeyDown}
+      onKeyDownCapture={handleKeyDownCapture}
       rightSectionPointerEvents={rightSectionPointerEvents ?? (disabled ? 'none' : undefined)}
       rightSectionWidth={rightSectionWidth ?? `var(--ni-right-section-width-${size || 'sm'})`}
       allowLeadingZeros={allowLeadingZeros}

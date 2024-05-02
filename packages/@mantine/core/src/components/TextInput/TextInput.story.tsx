@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconPhone } from '@tabler/icons-react';
 import { TextInput } from './TextInput';
 
@@ -21,7 +20,11 @@ export function Usage() {
         label="Text input"
         placeholder="This is text input"
         description="Description"
+        error="Error"
         id="test-id"
+        labelProps={{ style: { color: 'red' } }}
+        descriptionProps={{ style: { color: 'red' } }}
+        errorProps={{ style: { color: 'blue' } }}
       />
     </div>
   );

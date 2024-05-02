@@ -1,4 +1,3 @@
-import React from 'react';
 import { useId, useUncontrolled } from '@mantine/hooks';
 import {
   BoxProps,
@@ -15,8 +14,10 @@ import { __CloseButtonProps } from '../CloseButton';
 import {
   Combobox,
   ComboboxLikeProps,
+  ComboboxLikeRenderOptionInput,
   ComboboxLikeStylesNames,
   ComboboxStringData,
+  ComboboxStringItem,
   getOptionsLockup,
   getParsedComboboxData,
   OptionsDropdown,
@@ -26,6 +27,7 @@ import { __BaseInputProps, __InputStylesNames } from '../Input';
 import { InputBase } from '../InputBase';
 import { Pill } from '../Pill';
 import { PillsInput } from '../PillsInput';
+import { ScrollAreaProps } from '../ScrollArea';
 import { filterPickedTags } from './filter-picked-tags';
 import { getSplittedTags } from './get-splitted-tags';
 
@@ -51,8 +53,14 @@ export interface TagsInputProps
   /** Default value for uncontrolled component */
   defaultValue?: string[];
 
-  /** Called whe value changes */
+  /** Called when value changes */
   onChange?: (value: string[]) => void;
+
+  /** Called when tag is removed */
+  onRemove?: (value: string) => void;
+
+  /** Called when the clear button is clicked */
+  onClear?: () => void;
 
   /** Controlled search value */
   searchValue?: string;
@@ -82,10 +90,16 @@ export interface TagsInputProps
   clearButtonProps?: __CloseButtonProps & ElementProps<'button'>;
 
   /** Props passed down to the hidden input */
-  hiddenInputProps?: React.ComponentPropsWithoutRef<'input'>;
+  hiddenInputProps?: Omit<React.ComponentPropsWithoutRef<'input'>, 'value'>;
 
   /** Divider used to separate values in the hidden input `value` attribute, `','` by default */
   hiddenInputValuesDivider?: string;
+
+  /** A function to render content of the option, replaces the default content of the option */
+  renderOption?: (input: ComboboxLikeRenderOptionInput<ComboboxStringItem>) => React.ReactNode;
+
+  /** Props passed down to the underlying `ScrollArea` component in the dropdown */
+  scrollAreaProps?: ScrollAreaProps;
 }
 
 export type TagsInputFactory = Factory<{
@@ -169,6 +183,10 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
     hiddenInputProps,
     hiddenInputValuesDivider,
     mod,
+    renderOption,
+    onRemove,
+    onClear,
+    scrollAreaProps,
     ...others
   } = props;
 
@@ -188,7 +206,7 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
 
   const {
     styleProps,
-    rest: { type, ...rest },
+    rest: { type, autoComplete, ...rest },
   } = extractStyleProps(others);
 
   const [_value, setValue] = useUncontrolled({
@@ -258,7 +276,13 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
       }
     }
 
-    if (event.key === 'Backspace' && length === 0 && _value.length > 0) {
+    if (
+      event.key === 'Backspace' &&
+      length === 0 &&
+      _value.length > 0 &&
+      !event.nativeEvent.isComposing
+    ) {
+      onRemove?.(_value[_value.length - 1]);
       setValue(_value.slice(0, _value.length - 1));
     }
   };
@@ -286,8 +310,12 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
     <Pill
       key={`${item}-${index}`}
       withRemoveButton={!readOnly}
-      onRemove={() => setValue(_value.filter((i) => item !== i))}
+      onRemove={() => {
+        setValue(_value.filter((i) => item !== i));
+        onRemove?.(item);
+      }}
       unstyled={unstyled}
+      disabled={disabled}
       {...getStyles('pill')}
     >
       {item}
@@ -301,6 +329,7 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
       onClear={() => {
         setValue([]);
         setSearchValue('');
+        onClear?.();
       }}
     />
   );
@@ -362,7 +391,7 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
           >
             <Pill.Group disabled={disabled} unstyled={unstyled} {...getStyles('pillsList')}>
               {values}
-              <Combobox.EventsTarget>
+              <Combobox.EventsTarget autoComplete={autoComplete}>
                 <PillsInput.Field
                   {...rest}
                   ref={ref}
@@ -400,14 +429,17 @@ export const TagsInput = factory<TagsInputFactory>((_props, ref) => {
           withScrollArea={withScrollArea}
           maxDropdownHeight={maxDropdownHeight}
           unstyled={unstyled}
-          labelId={`${_id}-label`}
+          labelId={label ? `${_id}-label` : undefined}
+          aria-label={label ? undefined : others['aria-label']}
+          renderOption={renderOption}
+          scrollAreaProps={scrollAreaProps}
         />
       </Combobox>
-      <input
-        type="hidden"
+      <Combobox.HiddenInput
         name={name}
         form={form}
-        value={_value.join(hiddenInputValuesDivider)}
+        value={_value}
+        valuesDivider={hiddenInputValuesDivider}
         disabled={disabled}
         {...hiddenInputProps}
       />

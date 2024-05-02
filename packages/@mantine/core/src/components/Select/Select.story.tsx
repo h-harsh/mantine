@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../Button';
 import { Select } from './Select';
 
@@ -9,6 +9,44 @@ export function Usage() {
     <div style={{ padding: 40 }}>
       <Select
         data={['React', 'Angular', 'Svelte']}
+        placeholder="Select something"
+        defaultValue="First"
+        name="usage-select"
+      />
+    </div>
+  );
+}
+
+export function WithAreaLabel() {
+  return (
+    <div style={{ padding: 40 }}>
+      <Select
+        data={['React', 'Angular', 'Svelte']}
+        aria-label="Library"
+        placeholder="Select something"
+        dropdownOpened
+      />
+    </div>
+  );
+}
+
+export function FixedValue() {
+  return (
+    <div style={{ padding: 40 }}>
+      <Select data={['React', 'Angular', 'Svelte']} placeholder="Select something" value="React" />
+    </div>
+  );
+}
+
+export function ScrollToSelected() {
+  return (
+    <div style={{ padding: 40 }}>
+      <Select
+        data={['React', 'Angular', 'Svelte'].flatMap((value) =>
+          Array(10)
+            .fill(0)
+            .map((_, index) => `${value} ${index}`)
+        )}
         placeholder="Select something"
         defaultValue="First"
       />
