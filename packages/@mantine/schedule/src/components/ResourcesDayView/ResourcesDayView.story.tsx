@@ -1,11 +1,18 @@
 import dayjs from 'dayjs';
+import tz from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { useState } from 'react';
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { ScheduleEventData, ScheduleResourceData } from '../../types';
 import { toDateString } from '../../utils';
 import { ResourcesDayView } from './ResourcesDayView';
 
+dayjs.extend(utc);
+dayjs.extend(tz);
+
 export default { title: 'schedule/ResourcesDayView' };
+
+const timezones = ['UTC', 'America/New_York', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo'];
 
 const today = dayjs().format('YYYY-MM-DD');
 
@@ -519,6 +526,33 @@ export function MultiHourIntervals() {
           withCurrentTimeIndicator={false}
         />
       </div>
+    </Stack>
+  );
+}
+
+export function Timezone() {
+  const [timezone, setTimezone] = useState('UTC');
+  const getCurrentTime = () => dayjs().tz(timezone).format('YYYY-MM-DD HH:mm:ss');
+  const currentDate = getCurrentTime().split(' ')[0];
+
+  return (
+    <Stack p="md">
+      <Select
+        label="Display timezone"
+        data={timezones}
+        value={timezone}
+        onChange={(value) => setTimezone(value!)}
+        allowDeselect={false}
+        maw={300}
+      />
+
+      <ResourcesDayView
+        date={currentDate}
+        resources={resources}
+        events={regularEvents}
+        startScrollTime={dayjs(getCurrentTime()).subtract(2, 'hour').format('HH:mm:ss')}
+        getCurrentTime={getCurrentTime}
+      />
     </Stack>
   );
 }

@@ -26,6 +26,7 @@ import { useHorizontalEventResize } from '../../hooks/use-horizontal-event-resiz
 import { useSlotDragSelect } from '../../hooks/use-slot-drag-select';
 import { getLabel, ScheduleLabelsOverride } from '../../labels';
 import {
+  AnyDateValue,
   DateLabelFormat,
   DateStringValue,
   DateTimeStringValue,
@@ -122,6 +123,10 @@ export interface ResourcesWeekViewProps
   locale?: string;
   withCurrentTimeIndicator?: boolean;
   withCurrentTimeBubble?: boolean;
+
+  /** A function to get the current time, called on every tick. Can be used to display the current time indicator in a different timezone. @default () => dayjs() */
+  getCurrentTime?: () => AnyDateValue;
+
   withHeader?: boolean;
   onViewChange?: (view: ScheduleViewLevel) => void;
   previousControlProps?: React.ComponentProps<'button'> & DataAttributes;
@@ -274,6 +279,7 @@ export const ResourcesWeekView = factory<ResourcesWeekViewFactory>((_props) => {
     locale,
     withCurrentTimeIndicator: _withCurrentTimeIndicator,
     withCurrentTimeBubble,
+    getCurrentTime,
     __staticSelector,
     withHeader,
     onViewChange,
@@ -376,25 +382,22 @@ export const ResourcesWeekView = factory<ResourcesWeekViewFactory>((_props) => {
 
   const totalSlotsPerDay = slots.length;
 
-  const isToday = weekdays.some((day) => dayjs(day).isSame(dayjs(), 'day'));
+  const resolveNow = () => (getCurrentTime ? dayjs(getCurrentTime()) : dayjs());
+  const now = resolveNow();
+  const isToday = weekdays.some((day) => dayjs(day).isSame(now, 'day'));
   const withCurrentTimeIndicator = _withCurrentTimeIndicator ?? isToday;
 
-  const [timeIndicatorOffset, setTimeIndicatorOffset] = useState(
-    getCurrentTimePosition({ startTime, endTime, intervalMinutes })
-  );
-  useInterval(
-    () => setTimeIndicatorOffset(getCurrentTimePosition({ startTime, endTime, intervalMinutes })),
-    60000,
-    { autoInvoke: true }
-  );
+  const [, setTimeIndicatorTick] = useState(0);
+  useInterval(() => setTimeIndicatorTick((tick) => tick + 1), 60000, { autoInvoke: true });
+  const timeIndicatorOffset = getCurrentTimePosition({ startTime, endTime, intervalMinutes, now });
 
-  const todayDayIndex = weekdays.findIndex((day) => dayjs(day).isSame(dayjs(), 'day'));
+  const todayDayIndex = weekdays.findIndex((day) => dayjs(day).isSame(now, 'day'));
   const showTimeIndicator =
     withCurrentTimeIndicator &&
     todayDayIndex >= 0 &&
-    isInTimeRange({ date: dayjs().toDate(), startTime, endTime });
+    isInTimeRange({ date: now.toDate(), startTime, endTime });
   const formattedCurrentTime = withCurrentTimeBubble
-    ? formatDate({ locale: ctx.getLocale(locale), date: dayjs(), format: slotLabelFormat })
+    ? formatDate({ locale: ctx.getLocale(locale), date: now, format: slotLabelFormat })
     : '';
 
   type DropTargetSlot = { resourceId: string | number; slotIndex: number };
@@ -530,7 +533,7 @@ export const ResourcesWeekView = factory<ResourcesWeekViewFactory>((_props) => {
 
   const dayLabels = weekdays.map((day) => {
     const d = dayjs(day);
-    const today = d.isSame(dayjs(), 'day') && highlightToday;
+    const today = d.isSame(now, 'day') && highlightToday;
     const weekend = ctx.getWeekendDays(weekendDays).includes(d.day() as DayOfWeek);
 
     return (
@@ -986,7 +989,7 @@ export const ResourcesWeekView = factory<ResourcesWeekViewFactory>((_props) => {
           navigationHandlers={{
             previous: () => previousWeek(date, ctx.getFirstDayOfWeek(firstDayOfWeek)),
             next: () => nextWeek(date, ctx.getFirstDayOfWeek(firstDayOfWeek)),
-            today: () => toDateString(dayjs()),
+            today: () => toDateString(resolveNow()),
           }}
           control={{
             miw: 180,

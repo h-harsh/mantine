@@ -1,11 +1,18 @@
 import dayjs from 'dayjs';
+import tz from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { useState } from 'react';
-import { Stack, Text } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { ScheduleEventData, ScheduleResourceData } from '../../types';
 import { toDateString } from '../../utils';
 import { ResourcesWeekView } from './ResourcesWeekView';
 
+dayjs.extend(utc);
+dayjs.extend(tz);
+
 export default { title: 'schedule/ResourcesWeekView' };
+
+const timezones = ['UTC', 'America/New_York', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo'];
 
 const today = dayjs().format('YYYY-MM-DD');
 const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
@@ -406,5 +413,31 @@ export function ManyOverlappingEvents() {
       startTime="08:00:00"
       endTime="18:00:00"
     />
+  );
+}
+
+export function Timezone() {
+  const [timezone, setTimezone] = useState('UTC');
+  const getCurrentTime = () => dayjs().tz(timezone).format('YYYY-MM-DD HH:mm:ss');
+  const currentDate = getCurrentTime().split(' ')[0];
+
+  return (
+    <Stack p="md">
+      <Select
+        label="Display timezone"
+        data={timezones}
+        value={timezone}
+        onChange={(value) => setTimezone(value!)}
+        allowDeselect={false}
+        maw={300}
+      />
+
+      <ResourcesWeekView
+        date={currentDate}
+        resources={resources}
+        events={regularEvents}
+        getCurrentTime={getCurrentTime}
+      />
+    </Stack>
   );
 }

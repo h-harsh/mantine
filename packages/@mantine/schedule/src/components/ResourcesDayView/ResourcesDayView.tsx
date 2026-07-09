@@ -26,6 +26,7 @@ import { useHorizontalEventResize } from '../../hooks/use-horizontal-event-resiz
 import { useSlotDragSelect } from '../../hooks/use-slot-drag-select';
 import { getLabel, ScheduleLabelsOverride } from '../../labels';
 import {
+  AnyDateValue,
   DateLabelFormat,
   DateStringValue,
   DateTimeStringValue,
@@ -138,6 +139,9 @@ export interface ResourcesDayViewProps
 
   /** If set, the time indicator displays the current time in the bubble @default true */
   withCurrentTimeBubble?: boolean;
+
+  /** A function to get the current time, called on every tick. Can be used to display the current time indicator in a different timezone. @default () => dayjs() */
+  getCurrentTime?: () => AnyDateValue;
 
   /** If set, the header is displayed @default true */
   withHeader?: boolean;
@@ -330,6 +334,7 @@ export const ResourcesDayView = factory<ResourcesDayViewFactory>((_props) => {
     locale,
     withCurrentTimeIndicator: _withCurrentTimeIndicator,
     withCurrentTimeBubble = true,
+    getCurrentTime,
     __staticSelector,
     withHeader,
     onViewChange,
@@ -518,21 +523,18 @@ export const ResourcesDayView = factory<ResourcesDayViewFactory>((_props) => {
   };
 
   const dateStr = dayjs(date).format('YYYY-MM-DD');
-  const isToday = dayjs(date).isSame(dayjs(), 'day');
+  const resolveNow = () => (getCurrentTime ? dayjs(getCurrentTime()) : dayjs());
+  const now = resolveNow();
+  const isToday = dayjs(date).isSame(now, 'day');
   const withCurrentTimeIndicator = _withCurrentTimeIndicator ?? isToday;
 
-  const [timeIndicatorOffset, setTimeIndicatorOffset] = useState(
-    getCurrentTimePosition({ startTime, endTime, intervalMinutes })
-  );
-  useInterval(
-    () => setTimeIndicatorOffset(getCurrentTimePosition({ startTime, endTime, intervalMinutes })),
-    60000,
-    { autoInvoke: true }
-  );
+  const [, setTimeIndicatorTick] = useState(0);
+  useInterval(() => setTimeIndicatorTick((tick) => tick + 1), 60000, { autoInvoke: true });
+  const timeIndicatorOffset = getCurrentTimePosition({ startTime, endTime, intervalMinutes, now });
   const showTimeIndicator =
-    withCurrentTimeIndicator && isInTimeRange({ date: dayjs().toDate(), startTime, endTime });
+    withCurrentTimeIndicator && isInTimeRange({ date: now.toDate(), startTime, endTime });
   const formattedCurrentTime = withCurrentTimeBubble
-    ? formatDate({ locale: ctx.getLocale(locale), date: dayjs(), format: slotLabelFormat })
+    ? formatDate({ locale: ctx.getLocale(locale), date: now, format: slotLabelFormat })
     : '';
 
   const expandedEvents = useMemo(
@@ -938,7 +940,7 @@ export const ResourcesDayView = factory<ResourcesDayViewFactory>((_props) => {
           navigationHandlers={{
             previous: () => toDateString(dayjs(date).subtract(1, 'day')),
             next: () => toDateString(dayjs(date).add(1, 'day')),
-            today: () => toDateString(dayjs()),
+            today: () => toDateString(resolveNow()),
           }}
           control={{
             miw: 140,
