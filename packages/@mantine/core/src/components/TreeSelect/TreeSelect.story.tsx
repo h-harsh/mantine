@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { CaretRightIcon } from '@phosphor-icons/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '../Button';
 import { Combobox } from '../Combobox';
+import { Group } from '../Group';
 import { useVirtualizedCombobox } from '../Combobox/use-combobox/use-virtualized-combobox';
 import { InputBase } from '../InputBase';
 import { ScrollArea } from '../ScrollArea';
@@ -111,6 +113,37 @@ export function EmptyChildren() {
         defaultExpandedValues={['root']}
         label="Only Child 1 should show an expand chevron"
         placeholder="Select an item"
+      />
+    </div>
+  );
+}
+
+export function RenderNodeExpand() {
+  return (
+    <div style={{ padding: 40, maxWidth: 400 }}>
+      <TreeSelect
+        data={simpleData}
+        label="Custom renderNode with expand()"
+        placeholder="Select a technology"
+        expandOnClick={false}
+        renderNode={({ node, hasChildren, expanded, expand }) => (
+          <Group gap="xs" wrap="nowrap">
+            {hasChildren ? (
+              <CaretRightIcon
+                size={14}
+                onClick={expand}
+                style={{
+                  cursor: 'pointer',
+                  transform: expanded ? 'rotate(90deg)' : 'none',
+                  transition: 'transform 150ms ease',
+                }}
+              />
+            ) : (
+              <span style={{ display: 'inline-block', width: 14 }} />
+            )}
+            <span>{node.label}</span>
+          </Group>
+        )}
       />
     </div>
   );
