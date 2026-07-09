@@ -81,6 +81,41 @@ export function SingleSelect() {
   );
 }
 
+const emptyChildrenData: TreeNodeData[] = [
+  {
+    label: 'Root',
+    value: 'root',
+    children: [
+      {
+        label: 'Child 1 (has children)',
+        value: 'child-1',
+        children: [{ label: 'Grandchild 1', value: 'grandchild-1' }],
+      },
+      { label: 'Child 2 (children: [])', value: 'child-2', children: [] },
+      {
+        label: 'Child 3 (children: [], hasChildren: false)',
+        value: 'child-3',
+        children: [],
+        hasChildren: false,
+      },
+      { label: 'Child 4 (leaf, no children key)', value: 'child-4' },
+    ],
+  },
+];
+
+export function EmptyChildren() {
+  return (
+    <div style={{ padding: 40, maxWidth: 400 }}>
+      <TreeSelect
+        data={emptyChildrenData}
+        defaultExpandedValues={['root']}
+        label="Only Child 1 should show an expand chevron"
+        placeholder="Select an item"
+      />
+    </div>
+  );
+}
+
 export function SingleSelectSearchable() {
   return (
     <div style={{ padding: 40, maxWidth: 400 }}>

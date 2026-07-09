@@ -20,7 +20,7 @@ function getValuesRange(anchor: string | null, value: string | undefined, flatVa
 }
 
 function isVisibleTreeNode(node: HTMLElement, root: Element) {
-  for (let current: HTMLElement | null = node; current && current !== root; ) {
+  for (let current: HTMLElement | null = node; current && current !== root;) {
     if (current.style.display === 'none') {
       return false;
     }
@@ -74,7 +74,7 @@ export function TreeNode({
   data,
 }: TreeNodeProps) {
   const ref = useRef<HTMLLIElement>(null);
-  const hasLoadedChildren = Array.isArray(node.children);
+  const hasLoadedChildren = Array.isArray(node.children) && node.children.length > 0;
   const hasAsyncChildren = !!node.hasChildren && !hasLoadedChildren;
   const hasChildren = hasLoadedChildren || hasAsyncChildren;
   const isLoading = controller.isNodeLoading(node.value);
